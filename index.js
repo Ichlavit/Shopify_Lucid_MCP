@@ -1,8 +1,8 @@
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Tool list response for Lucid agent discovery
+    // Tool list response (Lucid discovery)
     if (url.pathname === "/toollist" && request.method === "GET") {
       const tools = [
         {
@@ -20,13 +20,12 @@ export default {
           }
         }
       ];
-
       return new Response(JSON.stringify(tools), {
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    // MCP run endpoint (invocation from Lucid)
+    // MCP run endpoint
     if (url.pathname === "/run" && request.method === "POST") {
       const body = await request.json();
       const { tool, arguments: args } = body;
@@ -74,10 +73,11 @@ export default {
         variables = { q: searchTerm, limit };
       }
 
-      // Use Cloudflare secrets for domain and token
-      const SHOPIFY_STORE_DOMAIN = SHOPIFY_STORE_DOMAIN;
-      const SHOPIFY_STOREFRONT_TOKEN = SHOPIFY_STOREFRONT_TOKEN;
+      // ✅ Use environment variables from Cloudflare
+      const SHOPIFY_STORE_DOMAIN = env.SHOPIFY_STORE_DOMAIN;
+      const SHOPIFY_STOREFRONT_TOKEN = env.SHOPIFY_STOREFRONT_TOKEN;
 
+      // Call Shopify Storefront API
       const sfResponse = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`, {
         method: "POST",
         headers: {
