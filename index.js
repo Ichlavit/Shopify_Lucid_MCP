@@ -2,7 +2,7 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // Tool list response (for Lucid agent discovery)
+    // Tool list response for Lucid agent discovery
     if (url.pathname === "/toollist" && request.method === "GET") {
       const tools = [
         {
@@ -31,7 +31,6 @@ export default {
       const body = await request.json();
       const { tool, arguments: args } = body;
 
-      // Only one tool for now
       if (tool !== "Shopify_MCP") {
         return new Response(JSON.stringify({ error: "Unknown tool" }), {
           status: 400,
@@ -39,10 +38,8 @@ export default {
         });
       }
 
-      // Destructure args
       const { mode, searchTerm, handle, limit = 5 } = args;
 
-      // Build Storefront GraphQL query
       let query, variables;
 
       if (mode === "byHandle" && handle) {
@@ -77,21 +74,23 @@ export default {
         variables = { q: searchTerm, limit };
       }
 
-      // Call Shopify Storefront
-      const sfResponse = await fetch(`https://mxx6fy-dd.myshopify.com/api/2026-01/graphql.json`, {
+      // Use Cloudflare secrets for domain and token
+      const SHOPIFY_STORE_DOMAIN = SHOPIFY_STORE_DOMAIN;
+      const SHOPIFY_STOREFRONT_TOKEN = SHOPIFY_STOREFRONT_TOKEN;
+
+      const sfResponse = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": 64dd7251adc91fbec13dec265b00c324
+          "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN
         },
         body: JSON.stringify({ query, variables })
       });
 
       const sfData = await sfResponse.json();
 
-      // Normalize result
       const nodes = mode === "byHandle"
-        ? [sfData.data.product].filter(x => x) 
+        ? [sfData.data.product].filter(x => x)
         : sfData.data.products.nodes;
 
       const products = nodes.map(prod => ({
