@@ -2,7 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Tool list response (Lucid discovery)
+    // GET /toollist — tool discovery
     if (url.pathname === "/toollist" && request.method === "GET") {
       const tools = [
         {
@@ -20,12 +20,13 @@ export default {
           }
         }
       ];
+
       return new Response(JSON.stringify(tools), {
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    // MCP run endpoint
+    // POST /run — main invocation
     if (url.pathname === "/run" && request.method === "POST") {
       const body = await request.json();
       const { tool, arguments: args } = body;
@@ -40,7 +41,6 @@ export default {
       const { mode, searchTerm, handle, limit = 5 } = args;
 
       let query, variables;
-
       if (mode === "byHandle" && handle) {
         query = `
           query ProductByHandle($h: String!) {
@@ -48,12 +48,11 @@ export default {
               id handle title availableForSale
               variants(first: 10) {
                 nodes {
-                  id title availableForSale currentlyNotInStock quantityAvailable
+                  id title availableForSale quantityAvailable
                 }
               }
             }
-          }
-        `;
+          }`;
         variables = { h: handle };
       } else {
         query = `
@@ -63,42 +62,45 @@ export default {
                 id handle title availableForSale
                 variants(first: 10) {
                   nodes {
-                    id title availableForSale currentlyNotInStock quantityAvailable
+                    id title availableForSale quantityAvailable
                   }
                 }
               }
             }
-          }
-        `;
+          }`;
         variables = { q: searchTerm, limit };
       }
 
-      // ✅ Use environment variables from Cloudflare
+      // ✅ Access secrets from env inside the handler
       const SHOPIFY_STORE_DOMAIN = env.SHOPIFY_STORE_DOMAIN;
       const SHOPIFY_STOREFRONT_TOKEN = env.SHOPIFY_STOREFRONT_TOKEN;
 
-      // Call Shopify Storefront API
-      const sfResponse = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN
-        },
-        body: JSON.stringify({ query, variables })
-      });
+      const sfResponse = await fetch(
+        `https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN
+          },
+          body: JSON.stringify({ query, variables })
+        }
+      );
 
       const sfData = await sfResponse.json();
 
-      const nodes = mode === "byHandle"
-        ? [sfData.data.product].filter(x => x)
-        : sfData.data.products.nodes;
+      const nodes =
+        mode === "byHandle"
+          ? [sfData.data.product].filter(x => x)
+          : sfData.data.products.nodes;
 
       const products = nodes.map(prod => ({
         id: prod.id,
         handle: prod.handle,
         title: prod.title,
         availability:
-          prod.availableForSale && prod.variants.nodes.some(v => v.quantityAvailable > 0)
+          prod.availableForSale &&
+          prod.variants.nodes.some(v => v.quantityAvailable > 0)
             ? "in_stock"
             : prod.availableForSale
             ? "backorder_possible"
@@ -111,9 +113,10 @@ export default {
         }))
       }));
 
-      return new Response(JSON.stringify({ products, matchedRootIntent: mode }), {
-        headers: { "Content-Type": "application/json" }
-      });
+      return new Response(
+        JSON.stringify({ products, matchedRootIntent: mode }),
+        { headers: { "Content-Type": "application/json" } }
+      );
     }
 
     return new Response("Not Found", { status: 404 });
