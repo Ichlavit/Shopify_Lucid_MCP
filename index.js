@@ -2,6 +2,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+        // 👇 Add it here
+    console.log("Incoming request:", request.method, url.pathname);
+
     // GET /toollist — tool discovery
     if (url.pathname === "/toollist" && request.method === "GET") {
       const tools = [
