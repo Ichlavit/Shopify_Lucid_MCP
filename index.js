@@ -15,14 +15,14 @@ export default {
       name: "Shopify_MCP",
       description: "Lookup products and availability in Shopify Storefront",
       input_schema: {
-        mode: "string",
-        searchTerm: "string",
-        handle: "string",
-        limit: "number"
-      },
-      output_schema: {
-        products: "array",
-        matchedRootIntent: "string"
+        type: "object",
+        properties: {
+          mode: { type: "string" },
+          searchTerm: { type: "string" },
+          handle: { type: "string" },
+          limit: { type: "number" }
+        },
+        required: ["mode"]
       }
     }
   ];
