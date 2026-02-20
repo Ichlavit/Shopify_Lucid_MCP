@@ -28,7 +28,16 @@ export default {
 
     // POST /run — main invocation
     if (url.pathname === "/run" && request.method === "POST") {
-      const body = await request.json();
+      let body;
+      try {
+        body = await request.json();
+      } catch (err) {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       const { tool, arguments: args } = body;
 
       if (tool !== "Shopify_MCP") {
@@ -54,7 +63,7 @@ export default {
             }
           }`;
         variables = { h: handle };
-      } else {
+      } else if (searchTerm) {
         query = `
           query SearchProducts($q: String!, $limit: Int!) {
             products(first: $limit, query: $q) {
@@ -69,30 +78,53 @@ export default {
             }
           }`;
         variables = { q: searchTerm, limit };
+      } else {
+        return new Response(JSON.stringify({ error: "Missing handle or searchTerm" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
       }
 
-      // ✅ Access secrets from env inside the handler
+      // ✅ Access Shopify secrets
       const SHOPIFY_STORE_DOMAIN = env.SHOPIFY_STORE_DOMAIN;
       const SHOPIFY_STOREFRONT_TOKEN = env.SHOPIFY_STOREFRONT_TOKEN;
 
-      const sfResponse = await fetch(
-        `https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN
-          },
-          body: JSON.stringify({ query, variables })
-        }
-      );
+      // 🛡 Check that secrets exist
+      if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_TOKEN) {
+        return new Response(JSON.stringify({
+          error: "Missing Shopify environment variables",
+          SHOPIFY_STORE_DOMAIN,
+          SHOPIFY_STOREFRONT_TOKEN: SHOPIFY_STOREFRONT_TOKEN ? "SET" : "MISSING"
+        }), { headers: { "Content-Type": "application/json" }, status: 500 });
+      }
 
-      const sfData = await sfResponse.json();
+      // 🔹 Call Shopify Storefront API
+      let sfData;
+      try {
+        const sfResponse = await fetch(
+          `https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN
+            },
+            body: JSON.stringify({ query, variables })
+          }
+        );
+        sfData = await sfResponse.json();
+      } catch (err) {
+        return new Response(JSON.stringify({ error: "Error fetching from Shopify", details: err.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
 
+      // 🔹 Process response
       const nodes =
         mode === "byHandle"
-          ? [sfData.data.product].filter(x => x)
-          : sfData.data.products.nodes;
+          ? [sfData.data?.product].filter(x => x)
+          : sfData.data?.products?.nodes || [];
 
       const products = nodes.map(prod => ({
         id: prod.id,
