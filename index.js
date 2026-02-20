@@ -7,8 +7,12 @@ export default {
 
     // GET /toollist — tool discovery
     if (
-  (url.pathname === "/" || url.pathname === "/toollist") &&
-  request.method === "GET"
+  request.method === "GET" &&
+  (
+    url.pathname === "/" ||
+    url.pathname === "/toollist" ||
+    url.pathname === "/tools"
+  )
 ) {
   const tools = [
     {
