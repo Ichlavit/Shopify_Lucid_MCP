@@ -6,29 +6,31 @@ export default {
     console.log("Incoming request:", request.method, url.pathname);
 
     // GET /toollist — tool discovery
-    if (url.pathname === "/toollist" && request.method === "GET") {
-      const tools = [
-        {
-          name: "Shopify_MCP",
-          description: "Lookup products and availability in Shopify Storefront",
-          input_schema: {
-            mode: "string",
-            searchTerm: "string",
-            handle: "string",
-            limit: "number"
-          },
-          output_schema: {
-            products: "array",
-            matchedRootIntent: "string"
-          }
-        }
-      ];
-
-      return new Response(JSON.stringify(tools), {
-        headers: { "Content-Type": "application/json" }
-      });
+    if (
+  (url.pathname === "/" || url.pathname === "/toollist") &&
+  request.method === "GET"
+) {
+  const tools = [
+    {
+      name: "Shopify_MCP",
+      description: "Lookup products and availability in Shopify Storefront",
+      input_schema: {
+        mode: "string",
+        searchTerm: "string",
+        handle: "string",
+        limit: "number"
+      },
+      output_schema: {
+        products: "array",
+        matchedRootIntent: "string"
+      }
     }
+  ];
 
+  return new Response(JSON.stringify(tools), {
+    headers: { "Content-Type": "application/json" }
+  });
+}
     // POST /run — main invocation
     if (url.pathname === "/run" && request.method === "POST") {
       let body;
